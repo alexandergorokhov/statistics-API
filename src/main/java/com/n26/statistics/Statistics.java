@@ -1,52 +1,41 @@
 package com.n26.statistics;
 
+import com.n26.pojo.Metric;
 import lombok.Getter;
-import org.springframework.scheduling.annotation.Scheduled;
+import lombok.Setter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.Objects;
+import java.time.Instant;
+import java.util.List;
 
 @Getter
-public class StatisticsImpl implements Statistics {
+@Setter
+@Component
+public class Statistics {
 
-    private BigDecimal sum;
-    private BigDecimal avg;
-    private BigDecimal min;
-    private BigDecimal max;
-    private Long count;
+    private TransactionStatistics transactionStatistics;
 
-    private static Statistics statistics;
 
-    public static Statistics getStatisticsInstance() {
-        if (Objects.isNull(statistics)) {
-            synchronized (StatisticsImpl.class) {
-                statistics = new StatisticsImpl();
-            }
+    @Autowired
+    public Statistics(TransactionStatistics transactionStatistics) {
+        this.transactionStatistics = transactionStatistics;
+    }
+
+    public Metric getStatistics() {
+        List<TransactionBucket> bucketList = transactionStatistics.getValidTransactionsBuckets(Instant.now().toEpochMilli());
+
+        Metric statistics = new Metric();
+        statistics.reset();
+        bucketList.forEach(bucket -> bucket.collectStatistics(statistics));
+        if (statistics.getCount().equals(0L)) {
+            statistics.setMax(new BigDecimal(0.00).setScale(2));
+            statistics.setMin(new BigDecimal(0.00).setScale(2));
         }
+
         return statistics;
-    }
 
-    private StatisticsImpl() {
-        resetStatistics();
-
-    }
-    @Scheduled(fixedRate = 60000)
-    public void resetStatistics() {
-        sum = new BigDecimal(0);
-        avg = new BigDecimal(0);
-        min = new BigDecimal(Integer.MAX_VALUE);
-        max = new BigDecimal(Integer.MIN_VALUE);
-        count = 0L;
-    }
-
-
-    @Override
-    public synchronized void update(BigDecimal amount) {
-        count++;
-        sum = sum.add(amount).setScale(2, BigDecimal.ROUND_HALF_UP);
-        min = min.min(amount);
-        max = max.max(amount);
-        avg = sum.divide(new BigDecimal(count).setScale(2, BigDecimal.ROUND_HALF_UP));
     }
 
 }

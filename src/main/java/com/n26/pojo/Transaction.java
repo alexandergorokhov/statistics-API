@@ -1,4 +1,4 @@
-package com.n26.statistics;
+package com.n26.pojo;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
